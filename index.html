@@ -685,7 +685,8 @@
     const speedRun = 9;
     
     // --- LÓGICA DE MOVIMENTO CORRIGIDA ---
-    const forward = (keys['KeyW'] ? -1 : 0) + (keys['KeyS'] ? 1 : 0);
+    // const forward = (keys['KeyW'] ? -1 : 0) + (keys['KeyS'] ? 1 : 0); // <-- BUG ESTAVA AQUI
+    const forward = (keys['KeyW'] ? 1 : 0) + (keys['KeyS'] ? -1 : 0); // <-- CORRIGIDO
     const side = (keys['KeyA'] ? -1 : 0) + (keys['KeyD'] ? 1 : 0);
     
     const isRunning = keys['ShiftLeft'] || keys['ShiftRight'];
@@ -1369,6 +1370,7 @@
 
 </body>
 </html>
+
 
 
 
