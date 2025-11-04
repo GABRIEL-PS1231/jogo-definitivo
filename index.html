@@ -119,7 +119,8 @@
   }
 </style>
 
-<!-- Import map (keeps imports short and avoids bundler) --><script type="importmap">
+
+<script type="importmap">
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -160,7 +161,7 @@
     <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
       <input id="name" class="input" placeholder="Seu nome" style="flex:1;padding:10px;border-radius:8px;background:#111;border:1px solid rgba(255,255,255,0.03);color:white" />
       <button id="start" class="btn">Iniciar Jogo</button>
-      <!-- BOTÃO JUNTADO DO CÓDIGO 1 --><button id="demo-load" class="btn" style="background:#3b82f6">Carregar Exemplo</button>
+      <button id="demo-load" class="btn" style="background:#3b82f6">Carregar Exemplo</button>
     </div>
   </div>
 </div>
@@ -178,10 +179,12 @@
   </div>
 </div>
 
-<!-- Divs de Loading/Error, agora escondidos por padrão --><div id="loading" class="modal hidden">
+
+<div id="loading" class="modal hidden">
     Carregando... <span id="loadPerc">0%</span>
 </div>
-<!-- DIV DE ERRO (USADO PELO DRAG-AND-DROP) --><div id="errors" style="position:fixed; bottom:16px; left:16px; color:#ffb3b3; z-index:930; font-size:13px; text-shadow: 1px 1px #000;"></div>
+
+<div id="errors" style="position:fixed; bottom:16px; left:16px; color:#ffb3b3; z-index:930; font-size:13px; text-shadow: 1px 1px #000;"></div>
 
 
 <script type="module">
@@ -352,11 +355,6 @@
 
     animate();
     updateHUD();
-    
-    /* if (isTouchDevice) {
-        setupMobileControls(); // <-- REMOVIDO: Esta função não existe, o IIFE abaixo faz o trabalho
-    }
-    */
   }
   
   // --- FUNÇÃO JUNTADA DO CÓDIGO 1 ---
@@ -743,16 +741,16 @@
     const speedRun = 9;
     
     // --- LÓGICA DE MOVIMENTO CORRIGIDA PARA O JOYSTICK E TECLADO ---
-    // A direção do joystick é sempre relativa ao "norte" do controle.
-    // O problema estava em como `forward` e `side` eram interpretados
-    // e aplicados à câmera.
     
-    // Para o teclado: 'W' é para frente, 'S' para trás, 'A' para esquerda, 'D' para direita
-    const forwardInput = (keys['KeyW'] ? 1 : 0) + (keys['KeyS'] ? -1 : 0);
+    // Para o teclado: 'W' é para frente (NEGATIVO), 'S' para trás (POSITIVO)
+    // O translateZ do Three.js move para frente com valores negativos.
+    const forwardInput = (keys['KeyW'] ? -1 : 0) + (keys['KeyS'] ? 1 : 0);
     const sideInput = (keys['KeyA'] ? -1 : 0) + (keys['KeyD'] ? 1 : 0);
 
-    // Para o joystick (as chaves KEYMAP.up/down/left/right são controladas pelo script mobile-controls)
-    const joyForwardInput = (keys['KeyW_Joy'] ? 1 : 0) + (keys['KeyS_Joy'] ? -1 : 0);
+    // Para o joystick (as chaves KEYMAP.up/down são controladas pelo script mobile-controls)
+    // Cima (W_Joy) = -1 (para frente)
+    // Baixo (S_Joy) = 1 (para trás)
+    const joyForwardInput = (keys['KeyW_Joy'] ? -1 : 0) + (keys['KeyS_Joy'] ? 1 : 0);
     const joySideInput = (keys['KeyA_Joy'] ? -1 : 0) + (keys['KeyD_Joy'] ? 1 : 0);
     
     // Combinar inputs do teclado e do joystick
@@ -767,11 +765,7 @@
     if (direction.length() > 0) direction.normalize();
 
     // APLICAR MOVIMENTO RELATIVO À CÂMERA
-    // Tanto para PC quanto para Mobile, o movimento deve ser relativo à câmera.
-    // O `PointerLockControls` do Three.js já tem métodos `translateX` e `translateZ`
-    // que movem o objeto (a câmera) no seu próprio espaço local. Isso garante
-    // que "para frente" seja sempre "para onde a câmera está olhando".
-    
+    // `translateZ` move para frente com valor NEGATIVO
     controls.getObject().translateX(direction.x * speed * dt);
     controls.getObject().translateZ(direction.z * speed * dt);
     
@@ -1212,9 +1206,12 @@
       </div>
       <div id="mc-right">
         <div class="mc-row">
-            <div class="mc-btn" id="mc-w2" style="font-size: 28px;">🔼</div> <!-- Pulo --><div class="mc-btn" id="mc-w1" style="font-size: 28px;">🔄</div> <!-- Trocar Arma --></div>
+            <div class="mc-btn" id="mc-w2" style="font-size: 28px;">🔼</div> <!-- Pulo -->
+            <div class="mc-btn" id="mc-w1" style="font-size: 28px;">🔄</div> <!-- Trocar Arma -->
+        </div>
         <div class="mc-row">
-            <div class="mc-btn" id="mc-melee" style="font-size: 28px;">✋</div> <!-- Interagir --><div class="mc-btn" id="mc-fire" style="font-size: 24px; background: rgba(200, 50, 50, 0.4);">ATIRAR</div>
+            <div class="mc-btn" id="mc-melee" style="font-size: 28px;">✋</div> <!-- Interagir -->
+            <div class="mc-btn" id="mc-fire" style="font-size: 24px; background: rgba(200, 50, 50, 0.4);">ATIRAR</div>
         </div>
       </div>
     `;
@@ -1298,13 +1295,15 @@
       const deadZone = 0.25 * maxRadius;
       
       // --- LÓGICA DO JOYSTICK CORRIGIDA ---
-      // dy invertido para cima ser positivo, dx para direita ser positivo
       if (Math.abs(dx) > deadZone) {
         if (dx < 0) { pressKeyOnce(KEYMAP.left); releaseKeyOnce(KEYMAP.right); } // Esquerda
         else { pressKeyOnce(KEYMAP.right); releaseKeyOnce(KEYMAP.left); }     // Direita
       } else {
-        releaseKeyOnce(KEYMAP.left); releaseKeyOnce(KEYMAP.right);
+        releaseKeyOnce(KEYMAP.left); releaseKeyOnce(KEYKEYMAP.right);
       }
+      
+      // Cima (dy < 0) = KEYMAP.up (KeyW_Joy)
+      // Baixo (dy > 0) = KEYMAP.down (KeyS_Joy)
       if (Math.abs(dy) > deadZone) {
         if (dy < 0) { pressKeyOnce(KEYMAP.up); releaseKeyOnce(KEYMAP.down); }    // Cima (para frente)
         else { pressKeyOnce(KEYMAP.down); releaseKeyOnce(KEYMAP.up); }     // Baixo (para trás)
