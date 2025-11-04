@@ -216,7 +216,8 @@
 
   // three
   let scene, camera, renderer, clock, controls, pistolModel, meleeModel, skyMesh;
-  let localPlayer = { name: 'Player', health: 100, score: 0, damageMultiplier: 1, isAlive: true, position: new THREE.Vector3(), weapon: 'pistol', ammo: 12, magCap: 12 };
+  // ADICIONADO speedMultiplier
+  let localPlayer = { name: 'Player', health: 100, score: 0, damageMultiplier: 1, isAlive: true, position: new THREE.Vector3(), weapon: 'pistol', ammo: 12, magCap: 12, speedMultiplier: 1.0 };
   let zombies = {};
   let zombieObjects = {};
   let gameActive = false;
@@ -555,6 +556,7 @@
     hud.classList.remove('hidden');
     localPlayer.health = 100; localPlayer.score = 0; localPlayer.isAlive = true;
     localPlayer.weapon = 'pistol'; localPlayer.ammo = localPlayer.magCap = 12;
+    localPlayer.damageMultiplier = 1.0; localPlayer.speedMultiplier = 1.0; // Reset powerups
     scoreEl.textContent = '0'; healthBar.style.width = '100%';
     
     if (!isTouchDevice) {
@@ -620,9 +622,17 @@
       lastSpawn = Date.now();
       spawnZombie();
     }
-    // occasional powerup / ammo spawn
+    
+    // CORRIGIDO: Spawn de Power-ups (Ammo, Dano, Velocidade)
     if (Math.random() < 0.0009) {
-      if (Math.random() < 0.6) spawnAmmoPackNearPlayer(); else spawnPowerup();
+      const r = Math.random();
+      if (r < 0.45) {
+          spawnAmmoPackNearPlayer();
+      } else if (r < 0.8) { 
+          spawnPowerup(); // Dano Duplo
+      } else {
+          spawnSpeedBoost(); // Novo Speed Boost
+      }
     }
   }
 
@@ -653,11 +663,16 @@
 
     group.position.set(x,0,z);
     
+    // CORRIGIDO: Tipos de Zumbi (Normal, Sprinter, Tank)
     const typeRoll = Math.random();
     let baseSpeed = 0.6, health=90, damage=8;
-    if (typeRoll < 0.6) { baseSpeed = 0.6 + Math.random()*0.25; health = 80 + Math.random()*40; damage = 8 + Math.floor(Math.random()*8); }
-    else if (typeRoll < 0.9) { baseSpeed = 1.2 + Math.random()*0.9; health = 45 + Math.random()*30; damage = 6 + Math.floor(Math.random()*6); }
-    else { baseSpeed = 0.28 + Math.random()*0.22; health = 220 + Math.random()*120; damage = 22 + Math.floor(Math.random()*18); }
+    if (typeRoll < 0.5) { // 50% Normal
+        baseSpeed = 0.6 + Math.random()*0.25; health = 80 + Math.random()*40; damage = 8 + Math.floor(Math.random()*8); 
+    } else if (typeRoll < 0.85) { // 35% Sprinter
+        baseSpeed = 1.4 + Math.random()*1.0; health = 45 + Math.random()*30; damage = 6 + Math.floor(Math.random()*6); 
+    } else { // 15% Tank
+        baseSpeed = 0.28 + Math.random()*0.22; health = 220 + Math.random()*120; damage = 22 + Math.floor(Math.random()*18); 
+    }
     
     let mixer = null;
     
@@ -715,10 +730,12 @@
 
   function handleCollisions() {}
 
+  // CORRIGIDO: Função onMouseDown (agora apenas para PC)
   function onMouseDown(e) {
-    // SÓ atira no PC se a mira estiver travada
-    if (!gameActive || (e.button === 0 && !isTouchDevice && !controls.isLocked)) return;
-    if (e.button === 0) shoot();
+    // PC: Atira com clique do mouse, mas só se a mira estiver travada
+    // Ignora completamente se for um dispositivo de toque
+    if (isTouchDevice || !gameActive || !controls.isLocked || e.button !== 0) return;
+    shoot();
   }
 
   function onMobileFire() {
@@ -736,18 +753,16 @@
   }
   function onKeyUp(e) { keys[e.code] = false; }
 
+  // CORRIGIDO: Lógica do Joystick (Frente/Trás)
   function applyMovement(dt) {
     const speedWalk = 6;
     const speedRun = 9;
     
-    // --- LÓGICA DE MOVIMENTO CORRIGIDA PARA O JOYSTICK E TECLADO ---
-    
     // Para o teclado: 'W' é para frente (NEGATIVO), 'S' para trás (POSITIVO)
-    // O translateZ do Three.js move para frente com valores negativos.
     const forwardInput = (keys['KeyW'] ? -1 : 0) + (keys['KeyS'] ? 1 : 0);
     const sideInput = (keys['KeyA'] ? -1 : 0) + (keys['KeyD'] ? 1 : 0);
 
-    // Para o joystick (as chaves KEYMAP.up/down são controladas pelo script mobile-controls)
+    // Para o joystick:
     // Cima (W_Joy) = -1 (para frente)
     // Baixo (S_Joy) = 1 (para trás)
     const joyForwardInput = (keys['KeyW_Joy'] ? -1 : 0) + (keys['KeyS_Joy'] ? 1 : 0);
@@ -758,7 +773,8 @@
     const finalSide = sideInput + joySideInput;
 
     const isRunning = keys['ShiftLeft'] || keys['ShiftRight'];
-    const speed = isRunning ? speedRun : speedWalk;
+    // ADICIONADO: Multiplicador de Velocidade
+    const speed = (isRunning ? speedRun : speedWalk) * (localPlayer.speedMultiplier || 1.0);
 
     // normalized direction
     const direction = new THREE.Vector3(finalSide, 0, finalForward); // finalSide para X, finalForward para Z
@@ -777,7 +793,7 @@
       controls.getObject().position.y = 1.6;
       canJump = true;
     }
-    // CORREÇÃO: Mapeado para 'Space' (PC) ou 'MobileJump' (tecla custom dos controles mobile)
+    
     if ((keys['Space'] || keys['MobileJump']) && canJump) {
       velocity.y = 5; canJump = false;
       keys['MobileJump'] = false; // Reseta o pulo mobile
@@ -792,6 +808,7 @@
 
     // if pistol and no ammo -> auto-melee
     if (localPlayer.weapon === 'pistol' && localPlayer.ammo <= 0) {
+      playEmptyClick(); // Toca som de clique vazio
       switchWeapon(); // Troca para melee
       meleeAttack();
       return;
@@ -841,7 +858,6 @@
     controls.getObject().getWorldPosition(pPos);
     let nearest = null; let nd = Infinity;
     
-    // --- CORREÇÃO ALCANCE: Aumentado de 2.2 para 3.5 ---
     const meleeRange = 3.5; 
     
     Object.entries(zombieObjects).forEach(([id, obj]) => {
@@ -904,6 +920,7 @@
     try { controls.unlock(); } catch(e){}
     crosshair.classList.add('hidden'); // <-- ALTERADO: .style.display para .classList
     hud.classList.add('hidden');
+    powerupEl.classList.add('hidden'); // Esconde powerup na morte
     if (isTouchDevice) {
         document.getElementById('mobile-controls').style.display = 'none';
     }
@@ -912,12 +929,26 @@
     gameOverModal.classList.remove('hidden');
   }
 
+  // CORRIGIDO: Gerencia os 2 powerups
   function updateUI() {
     healthBar.style.width = Math.max(0, localPlayer.health) + '%';
     scoreEl.textContent = localPlayer.score;
-    if (localPlayer.damageMultiplier > 1) powerupEl.classList.remove('hidden'); else powerupEl.classList.add('hidden');
+    
+    const speed = localPlayer.speedMultiplier || 1.0;
+    const damage = localPlayer.damageMultiplier || 1.0;
+
+    if (speed > 1) {
+        powerupEl.textContent = 'VELOCIDADE ATIVA';
+        powerupEl.classList.remove('hidden');
+    } else if (damage > 1) {
+        powerupEl.textContent = 'DANO DUPLO ATIVO';
+        powerupEl.classList.remove('hidden');
+    } else {
+        powerupEl.classList.add('hidden');
+    }
     updateHUD();
   }
+
   function updateHUD() {
     ammoEl.textContent = localPlayer.ammo;
     weaponNameEl.textContent = localPlayer.weapon === 'pistol' ? 'Pistola' : 'Katana';
@@ -946,16 +977,23 @@
   }
 
   function interactChest() {
+    // Esta função é chamada pelo 'E' ou botão mobile
+    // Vamos fazer ela dar Dano Duplo, como no código anterior
     localPlayer.damageMultiplier = 2.0;
-    setTimeout(()=>{ localPlayer.damageMultiplier = 1.0; }, 20000);
+    powerupEl.textContent = 'DANO DUPLO ATIVO';
+    powerupEl.classList.remove('hidden');
+    setTimeout(()=>{ 
+        localPlayer.damageMultiplier = 1.0; 
+        if (localPlayer.speedMultiplier <= 1) powerupEl.classList.add('hidden');
+    }, 20000);
   }
 
-  // spawn a generic powerup (double damage)
+  // CORRIGIDO: Lógica de Dano Duplo
   function spawnPowerup() {
     const pos = localPlayer.position.clone();
     pos.x += (Math.random()-0.5)*8; pos.z += (Math.random()-0.5)*8;
     const geo = new THREE.SphereGeometry(0.35,8,8);
-    const mat = new THREE.MeshStandardMaterial({color:0x3bff9a, emissive:0x0f7f5a});
+    const mat = new THREE.MeshStandardMaterial({color:0x3bff9a, emissive:0x0f7f5a}); // Verde
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(pos.x, 0.6, pos.z);
     mesh.userData = { type: 'doubleDamage', ttl: Date.now() + 20000 };
@@ -965,7 +1003,42 @@
       const dist = mesh.position.distanceTo(localPlayer.position);
       if (dist < 2) {
         localPlayer.damageMultiplier = 2.0;
-        setTimeout(()=>{ localPlayer.damageMultiplier = 1.0; }, 20000);
+        powerupEl.textContent = 'DANO DUPLO ATIVO';
+        powerupEl.classList.remove('hidden');
+        setTimeout(()=>{ 
+            localPlayer.damageMultiplier = 1.0; 
+            if (localPlayer.speedMultiplier <= 1) powerupEl.classList.add('hidden');
+        }, 20000);
+        scene.remove(mesh);
+        return;
+      }
+      if (Date.now() > mesh.userData.ttl) { scene.remove(mesh); return; }
+      requestAnimationFrame(check);
+    })();
+  }
+  
+  // ADICIONADO: Lógica do Speed Boost
+  function spawnSpeedBoost() {
+    const pos = localPlayer.position.clone();
+    pos.x += (Math.random()-0.5)*8; pos.z += (Math.random()-0.5)*8;
+    const geo = new THREE.SphereGeometry(0.35,8,8);
+    const mat = new THREE.MeshStandardMaterial({color:0x3b82f6, emissive:0x1a4fb0}); // Azul
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(pos.x, 0.6, pos.z);
+    mesh.userData = { type: 'speedBoost', ttl: Date.now() + 15000 };
+    scene.add(mesh);
+    
+    (function check() {
+      if (!mesh.parent) return;
+      const dist = mesh.position.distanceTo(localPlayer.position);
+      if (dist < 2) {
+        localPlayer.speedMultiplier = 1.8; // 80% mais rápido
+        powerupEl.textContent = 'VELOCIDADE ATIVA';
+        powerupEl.classList.remove('hidden');
+        setTimeout(()=>{ 
+            localPlayer.speedMultiplier = 1.0; 
+            if (localPlayer.damageMultiplier <= 1) powerupEl.classList.add('hidden');
+        }, 15000); // 15 segundos
         scene.remove(mesh);
         return;
       }
@@ -1158,8 +1231,8 @@
     if (!isTouch) return; // Só roda em dispositivos de toque
 
     const KEYMAP = {
-      up: 'KeyS_Joy',    // Mapeado para chaves customizadas para não conflitar com o teclado físico
-      down: 'KeyW_Joy',
+      up: 'KeyW_Joy',    // Mapeado para chaves customizadas para não conflitar com o teclado físico
+      down: 'KeyS_Joy',
       left: 'KeyA_Joy',
       right: 'KeyD_Joy',
       melee: 'KeyQ', // Mapeado para 'Q' (switchWeapon)
@@ -1169,14 +1242,21 @@
 
     const pressedKeys = new Set();
 
+    // CORRIGIDO: Botão de trocar de arma (Restaurado dispatchEvent)
     function dispatchKey(key, type) {
       try {
-        // Usa `keys` globalmente para que o `applyMovement` possa ler
+        // 1. Seta o estado global (para movimento contínuo)
         if (type === 'down') {
             keys[key] = true;
         } else {
             keys[key] = false;
         }
+        
+        // 2. Dispara o evento (para ações de clique único como Pular, Trocar Arma)
+        const eventType = (type === 'down' ? 'keydown' : 'keyup');
+        const ev = new KeyboardEvent(eventType, { code: key, key: key.replace('Key', ''), bubbles: true });
+        window.dispatchEvent(ev);
+
       } catch (e) { console.warn('mobile-controls: keyboard event dispatch failed', e); }
     }
 
@@ -1211,7 +1291,7 @@
         </div>
         <div class="mc-row">
             <div class="mc-btn" id="mc-melee" style="font-size: 28px;">✋</div> <!-- Interagir -->
-            <div class="mc-btn" id="mc-fire" style="font-size: 24px; background: rgba(300, 50, 50, 0.4);">ATIRAR</div>
+            <div class="mc-btn" id="mc-fire" style="font-size: 24px; background: rgba(200, 50, 50, 0.4);">ATIRAR</div>
         </div>
       </div>
     `;
@@ -1294,12 +1374,13 @@
 
       const deadZone = 0.25 * maxRadius;
       
-      // --- LÓGICA DO JOYSTICK CORRIGIDA ---
+      // --- LÓGICA DO JOYSTICK CORRIGIDA (Lados) ---
       if (Math.abs(dx) > deadZone) {
         if (dx < 0) { pressKeyOnce(KEYMAP.left); releaseKeyOnce(KEYMAP.right); } // Esquerda
         else { pressKeyOnce(KEYMAP.right); releaseKeyOnce(KEYMAP.left); }     // Direita
       } else {
-        releaseKeyOnce(KEYMAP.left); releaseKeyOnce(KEYKEYMAP.right);
+        releaseKeyOnce(KEYMAP.left); 
+        releaseKeyOnce(KEYMAP.right); // <-- Corrigido o typo 'KEYKEYMAP'
       }
       
       // Cima (dy < 0) = KEYMAP.up (KeyW_Joy)
@@ -1330,6 +1411,7 @@
         // Certifica-se de que não estamos iniciando o aim com um touch do joystick
         const touch = Array.from(e.changedTouches).find(t => !t.target.closest('#mobile-controls'));
         if (touch) {
+            e.preventDefault(); // CORRIGIDO: Impede o 'mousedown' de ser disparado ao mirar
             aimTouchIdentifier = touch.identifier;
             lastAimX = touch.clientX;
             lastAimY = touch.clientY;
@@ -1380,27 +1462,19 @@
       el.addEventListener('touchend', function (ev) { ev.preventDefault(); onTouchEnd(); }, {passive:false});
     }
 
+    // CORRIGIDO: Botão de atirar chama shoot() diretamente
     makeButton('mc-fire', 
-        () => {
+        () => { // onTouchStart
             if (!gameActive) return;
-            try {
-                // Simula o clique do mouse que a função shoot() espera
-                const ev = new MouseEvent('mousedown', { bubbles: true, clientX: 1, clientY: 1, button: 0 });
-                gameCanvas.dispatchEvent(ev);
-            } catch(e) {}
+            shoot(); // Chama a função de atirar diretamente
         }, 
-        () => {
-             if (!gameActive) return;
-             try {
-                const ev = new MouseEvent('mouseup', { bubbles: true, clientX: 1, clientY: 1, button: 0 });
-                gameCanvas.dispatchEvent(ev);
-             } catch(e) {}
+        () => { // onTouchEnd
+             // Não precisa fazer nada ao soltar
         }
     );
 
     makeButton('mc-melee', ()=>{ pressAndReleaseKey(KEYMAP.weapon1); }, ()=>{}); // Interagir (E)
     makeButton('mc-w1', ()=>{ pressAndReleaseKey(KEYMAP.melee); }, ()=>{}); // Trocar Arma (Q)
-    // CORREÇÃO: Mapeado para a tecla custom 'MobileJump'
     makeButton('mc-w2', ()=>{ pressKeyOnce(KEYMAP.weapon2); }, ()=>{ releaseKeyOnce(KEYMAP.weapon2); }); // Pulo
 
 
@@ -1428,5 +1502,4 @@
 
 </body>
 </html>
-
 
