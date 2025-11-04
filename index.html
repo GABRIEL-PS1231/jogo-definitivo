@@ -119,8 +119,7 @@
   }
 </style>
 
-<!-- Import map (keeps imports short and avoids bundler) -->
-<script type="importmap">
+<!-- Import map (keeps imports short and avoids bundler) --><script type="importmap">
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -161,8 +160,7 @@
     <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
       <input id="name" class="input" placeholder="Seu nome" style="flex:1;padding:10px;border-radius:8px;background:#111;border:1px solid rgba(255,255,255,0.03);color:white" />
       <button id="start" class="btn">Iniciar Jogo</button>
-      <!-- BOTÃO JUNTADO DO CÓDIGO 1 -->
-      <button id="demo-load" class="btn" style="background:#3b82f6">Carregar Exemplo</button>
+      <!-- BOTÃO JUNTADO DO CÓDIGO 1 --><button id="demo-load" class="btn" style="background:#3b82f6">Carregar Exemplo</button>
     </div>
   </div>
 </div>
@@ -180,12 +178,10 @@
   </div>
 </div>
 
-<!-- Divs de Loading/Error, agora escondidos por padrão -->
-<div id="loading" class="modal hidden">
+<!-- Divs de Loading/Error, agora escondidos por padrão --><div id="loading" class="modal hidden">
     Carregando... <span id="loadPerc">0%</span>
 </div>
-<!-- DIV DE ERRO (USADO PELO DRAG-AND-DROP) -->
-<div id="errors" style="position:fixed; bottom:16px; left:16px; color:#ffb3b3; z-index:930; font-size:13px; text-shadow: 1px 1px #000;"></div>
+<!-- DIV DE ERRO (USADO PELO DRAG-AND-DROP) --><div id="errors" style="position:fixed; bottom:16px; left:16px; color:#ffb3b3; z-index:930; font-size:13px; text-shadow: 1px 1px #000;"></div>
 
 
 <script type="module">
@@ -259,10 +255,11 @@
     clock = new THREE.Clock();
 
     // --- LUZES E CÉU (Modo Offline Padrão) ---
-    scene.fog = new THREE.FogExp2(0x0c0b0d, 0.0025);
-    const hemi = new THREE.HemisphereLight(0x8a7f7a, 0x101014, 0.8);
+    // Ajuste para noite brilhante
+    scene.fog = new THREE.FogExp2(0x050508, 0.002); // Mais claro, menos denso
+    const hemi = new THREE.HemisphereLight(0x4a4f5a, 0x101014, 0.6); // Luz ambiente mais clara
     scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xffcc88, 1.0);
+    const dir = new THREE.DirectionalLight(0xaabbff, 0.2); // Luz direcional mais azulada e fraca
     dir.position.set(-30,40,20);
     dir.castShadow = true;
     dir.shadow.camera.left = -80; dir.shadow.camera.right = 80; dir.shadow.camera.top = 80; dir.shadow.camera.bottom = -80;
@@ -281,7 +278,7 @@
     // --- FIM CHÃO ---
 
     // environment (lampposts/crates)
-    createEnvironment(scene, 20);
+    createEnvironment(scene, 40); // Aumentado para 40 postes
     
     // NOVO: Adiciona "prédios" simples
     createBuildings(scene, 40); // <-- ALTERADO: De 15 para 40
@@ -380,10 +377,32 @@
     const cvs = document.createElement('canvas'); cvs.width = cvs.height = size;
     const ctx = cvs.getContext('2d');
     const g = ctx.createLinearGradient(0,0,0,size);
-    g.addColorStop(0, '#061226');
-    g.addColorStop(0.5, '#0b1220');
-    g.addColorStop(1, '#12131a');
+    g.addColorStop(0, '#020410'); // Azul escuro da noite
+    g.addColorStop(0.5, '#050a1a');
+    g.addColorStop(1, '#080810');
     ctx.fillStyle = g; ctx.fillRect(0,0,size,size);
+    
+    // Estrelas
+    ctx.globalAlpha = 0.8;
+    for (let i = 0; i < 200; i++) {
+        const x = Math.random() * size;
+        const y = Math.random() * size * 0.7;
+        const radius = Math.random() * 1.5;
+        const starBrightness = 0.5 + Math.random() * 0.5;
+        ctx.fillStyle = `rgba(255, 255, 255, ${starBrightness})`;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Lua (sutil)
+    ctx.globalAlpha = 0.15; // Mais translúcida
+    ctx.fillStyle = '#ddddff';
+    ctx.beginPath();
+    ctx.arc(size * 0.8, size * 0.2, 40, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Nuvens
     ctx.globalAlpha = 0.06;
     for (let i=0;i<80;i++){
       ctx.fillStyle = `rgba(255,255,255,${0.02+Math.random()*0.06})`;
@@ -409,34 +428,73 @@
       const post = new THREE.Group();
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,4,8), new THREE.MeshStandardMaterial({color:0x222222}));
       pole.position.y = 2;
-      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), new THREE.MeshStandardMaterial({emissive:0xffe6b3, color:0x443322}));
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), new THREE.MeshStandardMaterial({emissive:0xffddbb, color:0x443322}));
       lamp.position.y = 4.2;
       post.add(pole, lamp);
       post.position.set(x,0,z);
       scene.add(post);
-      const light = new THREE.PointLight(0xffddbb, 0.9, 14, 2);
+      const light = new THREE.PointLight(0xffddbb, 1.2, 18, 2); // Luz mais forte e com maior alcance
       light.position.set(x,4.2,z);
       scene.add(light);
     }
   }
   
-  // --- NOVO: Função para criar prédios ---
+  // --- NOVO: Função para criar prédios com luzes ---
   function createBuildings(scene, count = 15) {
-      const buildingMat = new THREE.MeshStandardMaterial({ color: 0x25252a, roughness: 0.9 });
+      const buildingMat = new THREE.MeshStandardMaterial({ color: 0x18181f, roughness: 0.9 }); // Cor mais escura para contraste
+      const windowMat = new THREE.MeshBasicMaterial({ color: 0xffffaa, emissive: 0xffffaa, emissiveIntensity: 0.7 }); // Amarelo brilhante para janelas
+      
       for (let i = 0; i < count; i++) {
           const w = 8 + Math.random() * 15; // largura
           const h = 10 + Math.random() * 20; // altura
           const d = 8 + Math.random() * 15; // profundidade
-          const building = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), buildingMat);
           
-          building.position.set(
+          const buildingGroup = new THREE.Group();
+          const buildingBody = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), buildingMat);
+          buildingBody.position.y = h / 2;
+          buildingBody.castShadow = true;
+          buildingBody.receiveShadow = true;
+          buildingGroup.add(buildingBody);
+
+          // Adicionar janelas iluminadas aleatoriamente
+          const numWindows = Math.floor(h / 3) * Math.floor(w / 3); // Cerca de uma janela a cada 3x3 metros
+          for (let j = 0; j < numWindows; j++) {
+              if (Math.random() < 0.4) { // 40% de chance de uma janela estar acesa
+                  const windowWidth = 0.8 + Math.random() * 0.4;
+                  const windowHeight = 1.0 + Math.random() * 0.5;
+                  
+                  const windowGeo = new THREE.PlaneGeometry(windowWidth, windowHeight);
+                  const windowMesh = new THREE.Mesh(windowGeo, windowMat);
+
+                  // Posição da janela
+                  const xOffset = (Math.random() - 0.5) * (w - windowWidth - 1);
+                  const yOffset = (Math.random() - 0.5) * (h - windowHeight - 1) + h/2; // Centro do prédio é y=h/2
+                  
+                  // Escolher uma face aleatoriamente para colocar a janela
+                  const face = Math.floor(Math.random() * 4);
+                  if (face === 0) { // Frente
+                      windowMesh.position.set(xOffset, yOffset, d / 2 + 0.01);
+                  } else if (face === 1) { // Trás
+                      windowMesh.position.set(xOffset, yOffset, -d / 2 - 0.01);
+                      windowMesh.rotation.y = Math.PI;
+                  } else if (face === 2) { // Direita
+                      windowMesh.position.set(w / 2 + 0.01, yOffset, xOffset);
+                      windowMesh.rotation.y = Math.PI / 2;
+                  } else { // Esquerda
+                      windowMesh.position.set(-w / 2 - 0.01, yOffset, xOffset);
+                      windowMesh.rotation.y = -Math.PI / 2;
+                  }
+                  
+                  buildingGroup.add(windowMesh);
+              }
+          }
+          
+          buildingGroup.position.set(
               (Math.random() - 0.5) * 400, // x
-              h / 2, // y (metade da altura para ficar no chão)
+              0, // y (a body já está ajustada)
               (Math.random() - 0.5) * 400  // z
           );
-          building.castShadow = true;
-          building.receiveShadow = true;
-          scene.add(building);
+          scene.add(buildingGroup);
       }
   }
   // --- FIM NOVO ---
@@ -684,41 +742,39 @@
     const speedWalk = 6;
     const speedRun = 9;
     
-    // --- LÓGICA DE MOVIMENTO CORRIGIDA ---
-    // const forward = (keys['KeyW'] ? -1 : 0) + (keys['KeyS'] ? 1 : 0); // <-- BUG ESTAVA AQUI
-    const forward = (keys['KeyW'] ? 1 : 0) + (keys['KeyS'] ? -1 : 0); // <-- CORRIGIDO
-    const side = (keys['KeyA'] ? -1 : 0) + (keys['KeyD'] ? 1 : 0);
+    // --- LÓGICA DE MOVIMENTO CORRIGIDA PARA O JOYSTICK E TECLADO ---
+    // A direção do joystick é sempre relativa ao "norte" do controle.
+    // O problema estava em como `forward` e `side` eram interpretados
+    // e aplicados à câmera.
     
+    // Para o teclado: 'W' é para frente, 'S' para trás, 'A' para esquerda, 'D' para direita
+    const forwardInput = (keys['KeyW'] ? 1 : 0) + (keys['KeyS'] ? -1 : 0);
+    const sideInput = (keys['KeyA'] ? -1 : 0) + (keys['KeyD'] ? 1 : 0);
+
+    // Para o joystick (as chaves KEYMAP.up/down/left/right são controladas pelo script mobile-controls)
+    const joyForwardInput = (keys['KeyW_Joy'] ? 1 : 0) + (keys['KeyS_Joy'] ? -1 : 0);
+    const joySideInput = (keys['KeyA_Joy'] ? -1 : 0) + (keys['KeyD_Joy'] ? 1 : 0);
+    
+    // Combinar inputs do teclado e do joystick
+    const finalForward = forwardInput + joyForwardInput;
+    const finalSide = sideInput + joySideInput;
+
     const isRunning = keys['ShiftLeft'] || keys['ShiftRight'];
     const speed = isRunning ? speedRun : speedWalk;
 
     // normalized direction
-    const direction = new THREE.Vector3(side, 0, forward);
+    const direction = new THREE.Vector3(finalSide, 0, finalForward); // finalSide para X, finalForward para Z
     if (direction.length() > 0) direction.normalize();
 
-    const velocityX = direction.x * speed * dt;
-    const velocityZ = direction.z * speed * dt;
+    // APLICAR MOVIMENTO RELATIVO À CÂMERA
+    // Tanto para PC quanto para Mobile, o movimento deve ser relativo à câmera.
+    // O `PointerLockControls` do Three.js já tem métodos `translateX` e `translateZ`
+    // que movem o objeto (a câmera) no seu próprio espaço local. Isso garante
+    // que "para frente" seja sempre "para onde a câmera está olhando".
     
-    // PC usa translateX/Z (relativo à câmera)
-    if (!isTouchDevice) {
-        controls.getObject().translateX(velocityX);
-        controls.getObject().translateZ(velocityZ);
-    } else {
-        // Mobile usa vetores globais (para o joystick funcionar com a câmera)
-        const forwardVec = new THREE.Vector3();
-        const rightVec = new THREE.Vector3();
-        camera.getWorldDirection(forwardVec);
-        forwardVec.y = 0;
-        forwardVec.normalize();
-        rightVec.crossVectors(camera.up, forwardVec);
-        
-        const moveVector = new THREE.Vector3();
-        moveVector.addScaledVector(forwardVec, velocityZ); // W/S
-        moveVector.addScaledVector(rightVec, velocityX); // A/D
-        
-        controls.getObject().position.add(moveVector);
-    }
-
+    controls.getObject().translateX(direction.x * speed * dt);
+    controls.getObject().translateZ(direction.z * speed * dt);
+    
     // gravity
     velocity.y -= 9.8 * dt;
     controls.getObject().position.y += velocity.y * dt;
@@ -1108,10 +1164,10 @@
     if (!isTouch) return; // Só roda em dispositivos de toque
 
     const KEYMAP = {
-      up: 'KeyW',
-      down: 'KeyS',
-      left: 'KeyA',
-      right: 'KeyD',
+      up: 'KeyW_Joy',    // Mapeado para chaves customizadas para não conflitar com o teclado físico
+      down: 'KeyS_Joy',
+      left: 'KeyA_Joy',
+      right: 'KeyD_Joy',
       melee: 'KeyQ', // Mapeado para 'Q' (switchWeapon)
       weapon1: 'KeyE', // Mapeado para 'E' (interact)
       weapon2: 'MobileJump', // Mapeado para 'MobileJump' (pulo customizado)
@@ -1121,8 +1177,12 @@
 
     function dispatchKey(key, type) {
       try {
-        const ev = new KeyboardEvent(type === 'down' ? 'keydown' : 'keyup', { code: key, key: key.replace('Key', ''), bubbles: true });
-        window.dispatchEvent(ev);
+        // Usa `keys` globalmente para que o `applyMovement` possa ler
+        if (type === 'down') {
+            keys[key] = true;
+        } else {
+            keys[key] = false;
+        }
       } catch (e) { console.warn('mobile-controls: keyboard event dispatch failed', e); }
     }
 
@@ -1152,12 +1212,9 @@
       </div>
       <div id="mc-right">
         <div class="mc-row">
-            <div class="mc-btn" id="mc-w2" style="font-size: 28px;">🔼</div> <!-- Pulo -->
-            <div class="mc-btn" id="mc-w1" style="font-size: 28px;">🔄</div> <!-- Trocar Arma -->
-        </div>
+            <div class="mc-btn" id="mc-w2" style="font-size: 28px;">🔼</div> <!-- Pulo --><div class="mc-btn" id="mc-w1" style="font-size: 28px;">🔄</div> <!-- Trocar Arma --></div>
         <div class="mc-row">
-            <div class="mc-btn" id="mc-melee" style="font-size: 28px;">✋</div> <!-- Interagir -->
-            <div class="mc-btn" id="mc-fire" style="font-size: 24px; background: rgba(200, 50, 50, 0.4);">ATIRAR</div>
+            <div class="mc-btn" id="mc-melee" style="font-size: 28px;">✋</div> <!-- Interagir --><div class="mc-btn" id="mc-fire" style="font-size: 24px; background: rgba(200, 50, 50, 0.4);">ATIRAR</div>
         </div>
       </div>
     `;
@@ -1239,15 +1296,18 @@
       knob.style.top = topPct + '%';
 
       const deadZone = 0.25 * maxRadius;
+      
+      // --- LÓGICA DO JOYSTICK CORRIGIDA ---
+      // dy invertido para cima ser positivo, dx para direita ser positivo
       if (Math.abs(dx) > deadZone) {
-        if (dx < 0) { pressKeyOnce(KEYMAP.left); releaseKeyOnce(KEYMAP.right); }
-        else { pressKeyOnce(KEYMAP.right); releaseKeyOnce(KEYMAP.left); }
+        if (dx < 0) { pressKeyOnce(KEYMAP.left); releaseKeyOnce(KEYMAP.right); } // Esquerda
+        else { pressKeyOnce(KEYMAP.right); releaseKeyOnce(KEYMAP.left); }     // Direita
       } else {
         releaseKeyOnce(KEYMAP.left); releaseKeyOnce(KEYMAP.right);
       }
       if (Math.abs(dy) > deadZone) {
-        if (dy < 0) { pressKeyOnce(KEYMAP.up); releaseKeyOnce(KEYMAP.down); }
-        else { pressKeyOnce(KEYMAP.down); releaseKeyOnce(KEYMAP.up); }
+        if (dy < 0) { pressKeyOnce(KEYMAP.up); releaseKeyOnce(KEYMAP.down); }    // Cima (para frente)
+        else { pressKeyOnce(KEYMAP.down); releaseKeyOnce(KEYMAP.up); }     // Baixo (para trás)
       } else {
         releaseKeyOnce(KEYMAP.up); releaseKeyOnce(KEYMAP.down);
       }
@@ -1268,13 +1328,12 @@
     // Mira (Aim)
     gameCanvas.addEventListener('touchstart', (e) => {
         if (!gameActive) return; // Não mexe a câmera se o jogo não começou
-        if (aimTouchIdentifier === null) {
-            const touch = Array.from(e.changedTouches).find(t => !t.target.closest('#mobile-controls'));
-            if (touch) {
-                aimTouchIdentifier = touch.identifier;
-                lastAimX = touch.clientX;
-                lastAimY = touch.clientY;
-            }
+        // Certifica-se de que não estamos iniciando o aim com um touch do joystick
+        const touch = Array.from(e.changedTouches).find(t => !t.target.closest('#mobile-controls'));
+        if (touch) {
+            aimTouchIdentifier = touch.identifier;
+            lastAimX = touch.clientX;
+            lastAimY = touch.clientY;
         }
     }, { passive: false });
     
@@ -1370,7 +1429,4 @@
 
 </body>
 </html>
-
-
-
 
