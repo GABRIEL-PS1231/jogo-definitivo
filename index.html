@@ -674,19 +674,50 @@
         // Se o .glb foi carregado, clone ele
         group = zombieModelGltf.scene.clone();
         
-        // --- Configurar Animação ---
+        // --- Configurar Animação (CORRIGIDO) ---
         mixer = new THREE.AnimationMixer(group);
         
         if (zombieModelGltf.animations && zombieModelGltf.animations.length > 0) {
-            // Tocar a primeira animação (geralmente 'idle' ou 'walk')
-            const acao = mixer.clipAction(zombieModelGltf.animations[0]); 
+            
+            const animations = zombieModelGltf.animations;
+            
+            // CORRIGIDO: Procurar pelo nome exato da animação (Armature|walk ou Armature|run)
+            let clip = animations.find(a => a.name === 'Armature|walk');
+            
+            if (!clip) {
+                clip = animations.find(a => a.name === 'Armature|run');
+            }
+            // Se ainda não achou, procura por nomes que *contenham* walk/run
+            if (!clip) {
+                clip = animations.find(a => a.name.toLowerCase().includes('walk'));
+            }
+            if (!clip) {
+                clip = animations.find(a => a.name.toLowerCase().includes('run'));
+            }
+
+            let acao;
+            if (clip) {
+                // Encontrou uma animação pelo nome!
+                acao = mixer.clipAction(clip);
+                console.log("Iniciando animação encontrada:", clip.name);
+            } else {
+                // Não encontrou pelo nome.
+                // Vamos supor que [0] é "idle" e [1] é "walk".
+                // Se só tiver 1, usa a [0]. Se tiver mais de 1, usa a [1].
+                const animIndex = animations.length > 1 ? 1 : 0;
+                clip = animations[animIndex];
+                acao = mixer.clipAction(clip); 
+                console.warn(`Não achei "walk" ou "run" pelo nome, usando animação [${animIndex}]: ${clip.name}`);
+            }
+            
             acao.play();
+
         } else {
             console.warn("Modelo GLB do zumbi não tem animações.");
         }
 
-        // AJUSTE DE ESCALA:
-        group.scale.set(0.8, 0.8, 0.8); // Escala de 0.8
+        // CORRIGIDO: AJUSTE DE ESCALA (100x menor)
+        group.scale.set(0.01, 0.01, 0.01); // Escala de 0.01
 
     } else {
         // FALLBACK: Se o .glb falhou, usa o procedural
@@ -1571,5 +1602,7 @@
 
 </body>
 </html>
+
+
 
 
