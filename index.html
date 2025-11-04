@@ -234,6 +234,8 @@
   
   // LOADER JUNTADO DO CÓDIGO 1
   let loaderGLTF;
+  // ADICIONADO: Variável para guardar o modelo do zumbi pré-carregado
+  let zombieModelGltf = null;
   
   init();
 
@@ -243,6 +245,20 @@
 
     // INSTÂNCIA JUNTADA DO CÓDIGO 1
     loaderGLTF = new GLTFLoader();
+
+    // ADICIONADO: Pré-carregamento do modelo do zumbi
+    loaderGLTF.load(
+        './zombie_monster_slasher_necromorph.glb', // CORRIGIDO: Adicionado './' para ser uma URL relativa válida
+        (gltf) => {
+            zombieModelGltf = gltf; // Armazena o gltf carregado
+            console.log("Modelo de zumbi .glb carregado com sucesso!");
+        },
+        undefined, // onProgress
+        (error) => {
+            console.error('Erro ao pré-carregar o zumbi .glb', error);
+            errorsEl.textContent = 'Falha ao carregar modelo do zumbi. Usando fallback procedural.';
+        }
+    );
 
     // renderer + scene
     renderer = new THREE.WebGLRenderer({ antialias:true });
@@ -581,6 +597,12 @@
           if (m.geometry) m.geometry.dispose();
           if (m.material) { if (Array.isArray(m.material)) m.material.forEach(mt=>mt.dispose()); else m.material.dispose(); }
         });
+        
+        // ADICIONADO: Limpa o mixer de animação
+        if (obj.userData.mixer) {
+            obj.userData.mixer.uncacheRoot(obj);
+        }
+        
         scene.remove(obj);
       }
       delete zombieObjects[id]; delete zombies[id];
@@ -636,6 +658,7 @@
     }
   }
 
+  // ATUALIZADO: para usar o modelo .glb ou fallback procedural
   function spawnZombie() {
     const id = 'z_' + Date.now() + '_' + Math.floor(Math.random()*1000);
     const angle = Math.random() * Math.PI * 2;
@@ -644,21 +667,43 @@
     const z = Math.sin(angle)*r + (Math.random()-0.5)*10;
     
     let group;
-    let head, torso; // Para fallback de skin
+    let mixer = null; // Animation mixer
 
-    // --- Lógica de Modelo de Zumbi (Somente Procedural) ---
-    const skinTexture = window.__Z_SKIN_POOL[Math.floor(Math.random()*window.__Z_SKIN_POOL.length)];
-    const bodyMat = new THREE.MeshStandardMaterial({map: skinTexture, roughness:0.9, metalness:0.0});
-    
-    const legsMat = new THREE.MeshStandardMaterial({color:0x1d1d1d, roughness:0.95});
-    group = new THREE.Group();
-    const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.45,0.7,8), legsMat);
-    legs.position.y = 0.35;
-    torso = new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.45,0.9,8), bodyMat);
-    torso.position.y = 1.0; torso.name = 'body';
-    head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 8), bodyMat);
-    head.position.y = 1.6;
-    group.add(legs, torso, head);
+    // --- Lógica de Modelo de Zumbi (GLB ou Procedural) ---
+    if (zombieModelGltf) {
+        // Se o .glb foi carregado, clone ele
+        group = zombieModelGltf.scene.clone();
+        
+        // --- Configurar Animação ---
+        mixer = new THREE.AnimationMixer(group);
+        
+        if (zombieModelGltf.animations && zombieModelGltf.animations.length > 0) {
+            // Tocar a primeira animação (geralmente 'idle' ou 'walk')
+            const acao = mixer.clipAction(zombieModelGltf.animations[0]); 
+            acao.play();
+        } else {
+            console.warn("Modelo GLB do zumbi não tem animações.");
+        }
+
+        // AJUSTE DE ESCALA:
+        group.scale.set(0.8, 0.8, 0.8); // Escala de 0.8
+
+    } else {
+        // FALLBACK: Se o .glb falhou, usa o procedural
+        // console.warn("zombieModelGltf não carregado, usando zumbi procedural.");
+        const skinTexture = window.__Z_SKIN_POOL[Math.floor(Math.random()*window.__Z_SKIN_POOL.length)];
+        const bodyMat = new THREE.MeshStandardMaterial({map: skinTexture, roughness:0.9, metalness:0.0});
+        
+        const legsMat = new THREE.MeshStandardMaterial({color:0x1d1d1d, roughness:0.95});
+        group = new THREE.Group();
+        const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.45,0.7,8), legsMat);
+        legs.position.y = 0.35;
+        const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.45,0.45,0.9,8), bodyMat);
+        torso.position.y = 1.0; torso.name = 'body';
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 8), bodyMat);
+        head.position.y = 1.6;
+        group.add(legs, torso, head);
+    }
     // --- Fim da Lógica de Modelo ---
 
     group.position.set(x,0,z);
@@ -673,9 +718,7 @@
     } else { // 15% Tank
         baseSpeed = 0.28 + Math.random()*0.22; health = 220 + Math.random()*120; damage = 22 + Math.floor(Math.random()*18); 
     }
-    
-    let mixer = null;
-    
+        
     group.userData = { id, health, speed: baseSpeed, damage, _offset: Math.random()*10, _lastHit: 0, mixer: mixer };
     group.traverse((m)=>{ m.castShadow = true; m.receiveShadow = true; });
     scene.add(group);
@@ -683,6 +726,7 @@
     zombies[id] = group.userData;
   }
 
+  // ATUALIZADO: para tocar a animação
   function updateZombies(dt) {
     const pPos = new THREE.Vector3();
     controls.getObject().getWorldPosition(pPos);
@@ -698,6 +742,12 @@
           if (m.geometry) m.geometry.dispose();
           if (m.material) { if (Array.isArray(m.material)) m.material.forEach(mt=>mt.dispose()); else m.material.dispose(); }
         });
+        
+        // ADICIONADO: Limpa o mixer de animação
+        if (obj.userData.mixer) {
+            obj.userData.mixer.uncacheRoot(obj);
+        }
+
         scene.remove(obj);
         delete zombieObjects[id]; delete zombies[id];
         return;
@@ -711,9 +761,14 @@
       const desiredAngle = Math.atan2(pPos.x - obj.position.x, pPos.z - obj.position.z);
       obj.rotation.y += (desiredAngle - obj.rotation.y) * 0.08;
       
-      // Animação de balanço
-      obj.position.y = Math.abs(Math.sin(performance.now()/300 + (obj.userData._offset||0))*0.04);
+      // REMOVIDO: Animação de balanço procedural
+      // obj.position.y = Math.abs(Math.sin(performance.now()/300 + (obj.userData._offset||0))*0.04);
       
+      // ADICIONADO: Atualiza o mixer de animação do GLB
+      if (obj.userData.mixer) {
+          obj.userData.mixer.update(dt);
+      }
+
       if (dist < 1.4 && gameActive) {
         if (!obj.userData._lastHit || Date.now() - obj.userData._lastHit > 1000) {
           obj.userData._lastHit = Date.now();
@@ -880,6 +935,7 @@
     }
   }
 
+  // ATUALIZADO: para lidar com o mixer de animação
   function damageZombie(id, dmg) {
     const obj = zombieObjects[id];
     if (!obj) return;
@@ -891,6 +947,13 @@
       localPlayer.score += 100;
       scoreEl.textContent = localPlayer.score;
       const idobj = obj;
+      
+      // ADICIONADO: Para a animação
+      if (idobj.userData.mixer) {
+          idobj.userData.mixer.stopAllAction();
+          // NOTA: Poderíamos tocar uma animação de "morte" aqui se soubéssemos o nome/índice
+      }
+
       const start = performance.now();
       const duration = 450;
       (function anim() {
@@ -907,6 +970,12 @@
             if (m.geometry) m.geometry.dispose();
             if (m.material) { if (Array.isArray(m.material)) m.material.forEach(mt=>mt.dispose()); else m.material.dispose(); }
           });
+          
+          // ADICIONADO: Limpa o mixer de animação
+          if (idobj.userData.mixer) {
+              idobj.userData.mixer.uncacheRoot(idobj);
+          }
+
           scene.remove(idobj);
           delete zombieObjects[id]; delete zombies[id];
         }
@@ -1078,7 +1147,7 @@
     const geo = new THREE.BoxGeometry(0.6,0.35,0.6);
     const mat = new THREE.MeshStandardMaterial({color:0xff6666, emissive:0x331111});
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(pos.x, 0.5, pos.z);
+    mesh.position.set(pos.x, 0.5, p.z);
     mesh.userData = { type: 'health', ttl: Date.now() + 30000 };
     scene.add(mesh);
     (function check() {
@@ -1502,4 +1571,5 @@
 
 </body>
 </html>
+
 
