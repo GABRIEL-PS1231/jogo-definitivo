@@ -113,14 +113,9 @@
     gap: 10px;
     align-items: center;
   }
-  /* Controles mobile só aparecem em dispositivos de toque */
+  /* Controles mobile (display é controlado via JS) */
   #mobile-controls {
-      display: none;
-  }
-  @media (hover: none) and (pointer: coarse) {
-    #mobile-controls {
-      display: block;
-    }
+      display: none; /* Escondido por padrão, JS ativa */
   }
 </style>
 
@@ -361,9 +356,10 @@
     animate();
     updateHUD();
     
-    if (isTouchDevice) {
-        setupMobileControls();
+    /* if (isTouchDevice) {
+        setupMobileControls(); // <-- REMOVIDO: Esta função não existe, o IIFE abaixo faz o trabalho
     }
+    */
   }
   
   // --- FUNÇÃO JUNTADA DO CÓDIGO 1 ---
@@ -1166,6 +1162,14 @@
     `;
     document.body.appendChild(controlsContainer);
 
+    // <-- CORREÇÃO ADICIONADA
+    // Força a exibição em dispositivos de toque, sobrescrevendo o CSS
+    // que falha em previews de desktop (emulação).
+    if (isTouch) {
+        controlsContainer.style.display = 'block';
+    }
+    // --- FIM DA CORREÇÃO ---
+
     const joy = document.getElementById('mc-joy');
     const knob = document.getElementById('mc-knob');
     let joyRect, centerX, centerY, maxRadius;
@@ -1365,5 +1369,6 @@
 
 </body>
 </html>
+
 
 
